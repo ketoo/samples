@@ -17,4 +17,4 @@ dotnet publish --self-contained -r osx-x64 ${SRCDIR}/ManagedLibrary/ManagedLibra
 
 # Build native component
 # -D both LINUX and OSX since most LINUX code paths apply to OSX also
-g++ -o ${OUTDIR}/SampleHost -D LINUX -D OSX ${SRCDIR}/SampleHost.cpp -ldl
+g++ -o ${OUTDIR}/SampleHost -D LINUX -D OSX ${SRCDIR}/NFCSScriptModule.cpp -ldl

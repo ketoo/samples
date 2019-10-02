@@ -31,14 +31,13 @@ namespace ManagedLibrary
             [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] double[] data,
             ReportProgressFunction reportProgressFunction)
         {
+                Console.WriteLine($"Thread ID: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+            
             for (int i = 1; i <= iterations; i++)
             {
                 Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine($"Beginning work iteration {i}");
                 Console.ResetColor();
-
-                // Pause as if doing work
-                Thread.Sleep(1000);
 
                 // Call the native callback and write its return value to the console
                 var progressResponse = reportProgressFunction(i);
