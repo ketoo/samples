@@ -3,11 +3,11 @@
 void* NFCSScripteModule::hostHandle = nullptr;
 unsigned int NFCSScripteModule::domainId = -1;
 
-char* arg0;
+char* filePath;
 
 int main(int argc, char* argv[])
 {
-    arg0 = argv[0];
+    filePath = argv[0];
 
     std::cout << "main id:" << std::this_thread::get_id() << " path:" << argv[0] << std::endl;
     NFCSScripteModule csScriptModule;
@@ -15,6 +15,8 @@ int main(int argc, char* argv[])
     csScriptModule.Init();
     csScriptModule.AfterInit();
     csScriptModule.ReadyExecute();
+
+    csScriptModule.Test("DoWork");
 
     //while(1)
     {
@@ -26,46 +28,32 @@ int main(int argc, char* argv[])
   
     return 0;
 }
+
 bool NFCSScripteModule::Awake()
 {
     // Get the current executable's directory
     // This sample assumes that both CoreCLR and the
     // managed assembly to be loaded are next to this host
     // so we need to get the current path in order to locate those.
-    char runtimePath[MAX_PATH];
+    char runtimePath[1024];
 #if WINDOWS
-    GetFullPathNameA(arg0, MAX_PATH, runtimePath, NULL);
+    GetFullPathNameA(filePath, MAX_PATH, runtimePath, NULL);
 #elif LINUX
-    realpath(arg0, runtimePath);
+    realpath(filePath, runtimePath);
 #endif
     printf("0)%s\n", runtimePath);
     char *last_slash = strrchr(runtimePath, FS_SEPARATOR[0]);
     if (last_slash != NULL)
         *last_slash = 0;
 
-
-
-    // Construct the CoreCLR path
-    // For this sample, we know CoreCLR's path. For other hosts,
-    // it may be necessary to probe for coreclr.dll/libcoreclr.so
-    //std::string coreClrPath(runtimePath);
     std::string coreClrPath = "./";
-
-    printf("1)%s\n", coreClrPath.c_str());
-
     coreClrPath.append(FS_SEPARATOR);
-    printf("2)%s\n", coreClrPath.c_str());
     coreClrPath.append(CORECLR_FILE_NAME);
-    printf("3)%s\n", coreClrPath.c_str());
 
-    // Construct the managed library path
-    std::string managedLibraryPath(runtimePath);
-    //std::string managedLibraryPath(runtimePath);
+    std::string managedLibraryPath("./");
     managedLibraryPath.append(FS_SEPARATOR);
     managedLibraryPath.append(MANAGED_ASSEMBLY);
 
-    printf("4)%s\n", managedLibraryPath.c_str());
-        //
         // STEP 1: Load CoreCLR (coreclr.dll/libcoreclr.so)
         //
     #if WINDOWS
@@ -119,8 +107,6 @@ bool NFCSScripteModule::Awake()
             return -1;
         }
 
-        printf("STEP 3: Construct properties used when starting the runtime\n");
-        //
         // STEP 3: Construct properties used when starting the runtime
         //
 
@@ -130,8 +116,8 @@ bool NFCSScripteModule::Awake()
         // For this host (as with most), assemblies next to CoreCLR will
         // be included in the TPA list
         std::string tpaList;
-        BuildTpaList(runtimePath, ".dll", tpaList);
-
+        this->BuildTpaList(runtimePath, ".dll", tpaList);
+        
         // <Snippet3>
         // Define CoreCLR properties
         // Other properties related to assembly loading are common here,
@@ -146,11 +132,7 @@ bool NFCSScripteModule::Awake()
         };
         // </Snippet3>
 
-        printf("STEP 4: Start the CoreCLR runtime %s %s\n", coreClrPath.c_str(), managedLibraryPath.c_str());
-        //printf("ARGS: Start the CoreCLR runtime %s  %s  ==> %s\n", runtimePath, propertyKeys[0], propertyValues[0]);
-        //
         // STEP 4: Start the CoreCLR runtime
-        //
 
         // <Snippet4>
  
@@ -179,3 +161,70 @@ bool NFCSScripteModule::Awake()
         
         return true;
     }
+
+bool NFCSScripteModule::Init()
+{
+    return true;
+}
+
+bool NFCSScripteModule::Shut()
+{
+    // STEP 6: Shutdown CoreCLR
+    //
+    // <Snippet6>
+    hr = shutdownCoreClr(hostHandle, domainId);
+    // </Snippet6>
+    if (hr >= 0)
+    {
+        printf("CoreCLR successfully shutdown\n");
+    }
+    else
+    {
+        printf("coreclr_shutdown failed - status: 0x%08x\n", hr);
+    }
+
+    return true;
+}
+
+
+ bool NFCSScripteModule::Test(const std::string& functionName)
+ {
+    // <Snippet5>
+    doWork_ptr managedDelegate;
+
+    // The assembly name passed in the third parameter is a managed assembly name
+    // as described at https://docs.microsoft.com/dotnet/framework/app-domains/assembly-names
+    hr = createManagedDelegate(
+            hostHandle,
+            domainId,
+            "ManagedLibrary, Version=1.0.0.0",
+            "ManagedLibrary.ManagedWorker",
+            functionName.c_str(),
+            (void**)&managedDelegate);
+    // </Snippet5>
+
+    if (hr >= 0)
+    {
+        printf("Managed delegate created\n");
+    }
+    else
+    {
+        printf("coreclr_create_delegate failed - status: 0x%08x\n", hr);
+        return -1;
+    }
+
+
+    // Invoke the managed delegate and write the returned string to the console
+    char* ret = managedDelegate("Test job", 5, ReportProgressCallback);
+
+    printf("Managed code returned: %s\n", ret);
+
+    // Strings returned to native code must be freed by the native code
+#if WINDOWS
+    CoTaskMemFree(ret);
+#elif LINUX
+    free(ret);
+#endif
+
+     return true;
+ }

@@ -27,8 +27,6 @@ namespace ManagedLibrary
         public static string DoWork(
             [MarshalAs(UnmanagedType.LPStr)] string jobName,
             int iterations,
-            int dataSize,
-            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] double[] data,
             ReportProgressFunction reportProgressFunction)
         {
                 Console.WriteLine($"Thread ID: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
@@ -44,11 +42,11 @@ namespace ManagedLibrary
                 Console.WriteLine($"Received response [{progressResponse}] from progress function");
             }
 
-            Console.ForegroundColor = ConsoleColor.Green;
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"Work completed");
             Console.ResetColor();
 
-            return $"Data received: {string.Join(", ", data.Select(d => d.ToString()))}";
+            return "Work completed";
         }
     }
 }

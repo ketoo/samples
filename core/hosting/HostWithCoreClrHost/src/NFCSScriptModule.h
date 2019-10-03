@@ -12,10 +12,6 @@
 
 #define MANAGED_ASSEMBLY "ManagedLibrary.dll"
 
-// Define OS-specific items like the CoreCLR library's name and path elements
-
-
-
 #if WINDOWS
 #include <Windows.h>
 #define FS_SEPARATOR "\\"
@@ -27,9 +23,9 @@
 #include <dirent.h>
 #include <dlfcn.h>
 #include <limits.h>
+
 #define FS_SEPARATOR "/"
 #define PATH_DELIMITER ":"
-#define MAX_PATH PATH_MAX
     #if OSX
     // For OSX, use Linux defines except that the CoreCLR runtime
     // library has a different name
@@ -41,10 +37,14 @@
 
 // Function pointer types for the managed call and callback
 typedef int (*report_callback_ptr)(int progress);
-typedef char* (*doWork_ptr)(const char* jobName, int iterations, int dataSize, double* data, report_callback_ptr callbackFunction);
+typedef char* (*doWork_ptr)(const char* jobName, int iterations, report_callback_ptr callbackFunction);
 
-void BuildTpaList(const char* directory, const char* extension, std::string& tpaList);
-int ReportProgressCallback(int progress);
+// Callback function passed to managed code to facilitate calling back into native code with status
+int ReportProgressCallback(int progress)
+{
+    std::cout << std::this_thread::get_id()  << "  Received progress from managed code:" << progress << std::endl;
+    return progress * 100;
+}
 
 
 class NFCSScripteModule
@@ -67,77 +67,11 @@ public:
     }
     
     virtual bool Awake();
-
-	virtual bool Init()
-    {
-
-        // <Snippet5>
-        doWork_ptr managedDelegate;
-
-        // The assembly name passed in the third parameter is a managed assembly name
-        // as described at https://docs.microsoft.com/dotnet/framework/app-domains/assembly-names
-        hr = createManagedDelegate(
-                hostHandle,
-                domainId,
-                "ManagedLibrary, Version=1.0.0.0",
-                "ManagedLibrary.ManagedWorker",
-                "DoWork",
-                (void**)&managedDelegate);
-        // </Snippet5>
-
-        if (hr >= 0)
-        {
-            printf("Managed delegate created\n");
-        }
-        else
-        {
-            printf("coreclr_create_delegate failed - status: 0x%08x\n", hr);
-            return -1;
-        }
-
-        // Create sample data for the double[] argument of the managed method to be called
-        double data[4];
-        data[0] = 0;
-        data[1] = 0.25;
-        data[2] = 0.5;
-        data[3] = 0.75;
-
-        // Invoke the managed delegate and write the returned string to the console
-        char* ret = managedDelegate("Test job", 5, sizeof(data) / sizeof(double), data, ReportProgressCallback);
-
-        printf("Managed code returned: %s\n", ret);
-
-        // Strings returned to native code must be freed by the native code
-    #if WINDOWS
-        CoTaskMemFree(ret);
-    #elif LINUX
-        free(ret);
-    #endif
-
-        //
-        // STEP 6: Shutdown CoreCLR
-        //
-
-        // <Snippet6>
-        hr = shutdownCoreClr(hostHandle, domainId);
-        // </Snippet6>
-
-        if (hr >= 0)
-        {
-            printf("CoreCLR successfully shutdown\n");
-        }
-        else
-        {
-            printf("coreclr_shutdown failed - status: 0x%08x\n", hr);
-        }
-
-        return true;
-    }
-
-    virtual bool Shut()
-    {
-        return true;
-    }
+    virtual bool Init();
+	
+    virtual bool Shut();
+    
+    virtual bool Test(const std::string& functionName);
 
 	virtual bool ReadyExecute()
     {
@@ -158,11 +92,8 @@ public:
     {
         return true;
     }
-};
 
-    //
-    // STEP 5: Create delegate to managed code and invoke it
-    //
+protected:
 
 #if WINDOWS
 // Win32 directory search for .dll files
@@ -242,12 +173,5 @@ void BuildTpaList(const char* directory, const char* extension, std::string& tpa
     }
 }
 #endif
-
-// Callback function passed to managed code to facilitate calling back into native code with status
-int ReportProgressCallback(int progress)
-{
-    std::cout << std::this_thread::get_id() << std::endl;
-    // Just print the progress parameter to the console and return -progress
-    printf("Received status from managed code: %d\n", progress);
-    return -progress;
-}
+};
+ 
