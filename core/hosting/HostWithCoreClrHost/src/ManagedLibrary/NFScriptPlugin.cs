@@ -24,6 +24,43 @@ namespace ManagedLibrary
         // waits (in a loop) for a bit, invoking the callback function periodically, and
         // then returns a string version of the double[] passed in.
         [return: MarshalAs(UnmanagedType.LPStr)]
+        //MarshalAs(UnmanagedType.LPStruct)]
+        
+        public static void Awake()
+        {
+            Console.WriteLine("script system Awake");
+        }
+        
+        public static void Init()
+        {
+            Console.WriteLine("script system Init");
+        }
+        
+        public static void Shut()
+        {
+            Console.WriteLine("script system Shut");
+        }
+        
+        public static void ReadyExecute()
+        {
+            Console.WriteLine("script system ReadyExecute");
+        }
+
+        public static void Execute()
+        {
+            Console.WriteLine("script system Execute");
+        }
+
+        public static void AfterInit()
+        {
+            Console.WriteLine("script system AfterInit");
+        }
+
+        public static void BeforeShut()
+        {
+            Console.WriteLine("script system BeforeShut");
+        }
+
         public static string DoWork(
             [MarshalAs(UnmanagedType.LPStr)] string jobName,
             int iterations,
@@ -44,9 +81,10 @@ namespace ManagedLibrary
 
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"Work completed");
+
             Console.ResetColor();
 
-            return "Work completed";
+            return "completed";
         }
     }
 }
